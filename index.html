@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Transcript Prediction</title>
+</head>
+<body>
+  <h1>Transcript Prediction</h1>
+  <label for="transcriptId">Transcript ID:</label>
+  <input type="text" id="transcriptId" placeholder="输入 transcript_id">
+  <button onclick="fetchPrediction()">提交</button>
+
+  <h2>Predicted Result:</h2>
+  <p>Predicted Value: <span id="predicted_value"></span></p>
+  <p>GWAS Score: <span id="gwas_score"></span></p>
+
+  <script>
+    async function fetchPrediction() {
+      const transcriptId = document.getElementById('transcriptId').value;
+      const response = await fetch('https://YOUR_PUBLIC_URL.ngrok.io/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript_id: transcriptId })
+      });
+      const data = await response.json();
+      document.getElementById('predicted_value').innerText = data.predicted_value;
+      document.getElementById('gwas_score').innerText = data.gwas_score;
+    }
+  </script>
+</body>
+</html>
+
