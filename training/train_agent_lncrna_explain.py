@@ -4,28 +4,45 @@ train_agent_lncrna_explain.py
 
 DRL training for lncRNAExplainEnv:
   - Absolute path resolution
-  - GO‐annotation count via QuickGO REST
-  - Multi‐metric tracking & plots (reward, interpretability, GWAS overlap)
+  - GO-annotation count via QuickGO REST
+  - Chromatin-mark features (e.g., H3K27ac, H3K4me3)
+  - Multi-metric tracking & plots (reward, interpretability, GWAS overlap)
 
 Usage:
   cd <project_root>
-  python training/train_agent_lncrna_explain.py
+  python -m training.train_agent_lncrna_explain
 
 Dependencies:
-  pip install torch numpy matplotlib gym pandas viennarna biopython
+  pip install torch numpy matplotlib gym pandas requests
 """
 import os
-# allow duplicate OpenMP runtimes
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
+import torch
+import pandas as pd
+import requests
+
+# allow duplicate OpenMP runtimes
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 # ensure project root on PYTHONPATH
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from environment.lncrna_explain_env import LncRNAExplainEnv
 from agent.drl_agent_explain import DQNAgent
+
+
+def fetch_go_count(transcript_id: str) -> int:
+    """Fetch GO annotation count for a given transcript via QuickGO REST."""
+    url = f"https://www.ebi.ac.uk/QuickGO/services/annotation/search?geneProductId={transcript_id}&limit=0"
+    headers = {"Accept": "application/json"}
+    try:
+        resp = requests.get(url, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
+        return int(data.get('pageInfo', {}).get('total', 0))
+    except Exception:
+        return 0
 
 
 def train(
@@ -46,6 +63,13 @@ def train(
     if not os.path.isdir(base_array_dir):
         raise FileNotFoundError(f"base_arrays dir not found: {base_array_dir}")
 
+    # Optionally augment summary with GO counts
+    summary_df = pd.read_csv(summary_csv, index_col='id')
+    if 'go_count' not in summary_df.columns:
+        summary_df['go_count'] = summary_df.index.map(fetch_go_count)
+        summary_df.to_csv(summary_csv)
+        print("Appended GO counts to summary.csv")
+
     # Create environment & agent
     env = LncRNAExplainEnv(summary_csv=summary_csv, base_array_dir=base_array_dir)
     state_dim  = env.observation_space.shape[0]
@@ -61,14 +85,12 @@ def train(
         interp_hist, overlap_hist = [], []
 
         for t in range(1, max_steps_per_episode+1):
-            # select and apply action
             flat_a = agent.select_action(state)
             a0, a1 = divmod(flat_a, 3)
             nxt_s, r, done, _ = env.step([a0, a1])
             agent.buffer.push(state, flat_a, r, nxt_s, done)
             agent.optimize()
 
-            # metrics
             total_reward += r
             interp_hist.append(env.interp_score)
             arr = np.load(os.path.join(base_array_dir, f"{env.current_id}.npz"))
@@ -79,11 +101,9 @@ def train(
             if done:
                 break
 
-        # update target network
         if ep % target_update_freq == 0:
             agent.update_target()
 
-        # record episode stats
         rewards.append(total_reward)
         interps.append(np.mean(interp_hist))
         overlaps.append(np.mean(overlap_hist))
@@ -103,7 +123,6 @@ def train(
     plt.savefig('training_metrics.png')
     print('Saved training_metrics.png')
 
-    # Histogram of episode lengths
     plt.figure()
     plt.hist(lengths, bins=20)
     plt.xlabel('Steps per Episode')
@@ -111,6 +130,10 @@ def train(
     plt.title('Episode Lengths')
     plt.savefig('episode_lengths_hist.png')
     print('Saved episode_lengths_hist.png')
+
+    # Save the policy network weights
+    torch.save(agent.policy_net.state_dict(), "policy_net_checkpoint.pth")
+    print("Saved policy checkpoint to policy_net_checkpoint.pth")
 
     return rewards, interps, overlaps
 

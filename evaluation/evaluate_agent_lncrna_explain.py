@@ -4,6 +4,9 @@ import numpy as np
 import pandas as pd
 import torch
 import matplotlib.pyplot as plt
+import sys
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from environment.lncrna_explain_env import LncRNAExplainEnv
 from agent.drl_agent_explain import DQN, DQNAgent
