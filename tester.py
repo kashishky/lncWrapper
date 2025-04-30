@@ -11,7 +11,7 @@ import json
 API_URL = "http://127.0.0.1:8000/infer"
 
 def test_known():
-    tid = input("Enter a precomputed transcript ID (e.g. TX_0001): ").strip()
+    tid = input("Enter a precomputed transcript ID (e.g. HSALNT1008091): ").strip()
     payload = {"transcript_id": tid}
     print("\nRequest payload:")
     print(json.dumps(payload, indent=2))
