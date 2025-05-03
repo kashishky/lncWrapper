@@ -28,12 +28,9 @@ lncWrapper/
 │   └── evaluate_agent_lncrna_explain.py
 ├── deployment/
 │   └── lncrna_api_server.py       ← FastAPI inference service
-├── ui/
-│   └── streamlit_app.py           ← Streamlit dashboard (Live API)
-├── frontend-demo/
-│   └── demo_script.py             ← Static placeholder demo (no live model)
-└── checkpoints/
-    └── final_model.pth
+├── frontend/
+│   └── frontend.py                ← Streamlit dashboard (Live API)
+├── frontenddemo.py                ← Static placeholder demo (no live model)
 ```
 
 ## System Requirements
