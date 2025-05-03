@@ -1,3 +1,9 @@
+"""
+This is a pre-loaded visual set up of the demo calling form the API server using examples, not a live represnetation of calling the model
+
+"""
+
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -5,6 +11,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from Bio import SeqIO
 import io, re
+
+
 
 # Page config
 st.set_page_config(page_title="lncRNA Explorer Demo", layout="wide")

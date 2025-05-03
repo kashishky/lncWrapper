@@ -14,7 +14,10 @@ Usage:
 
 Dependencies:
   pip install torch numpy matplotlib gym pandas requests
-"""
+
+  if using below 3.10 you'll likely need to upgrade typing_extensions
+  conda install -c conda-forge typing_extensions
+  /or if doing full api release since ViennaRNA need linux distconda install pytorch torchvision torchaudio cpuonly -c pytorch"""
 import os
 import sys
 import numpy as np
