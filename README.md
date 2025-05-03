@@ -26,10 +26,7 @@ demo.py: Demonstration script to showcase model capabilities.
 requirements.txt: Lists all Python dependencies.
 
 Prerequisites:
-Python 3.7 or higher
-PyTorch (compatible version)
-Streamlit
-Other dependencies listed in requirements.txt
+Python 3.7 or higher, PyTorch (compatible version), Streamlit, Other dependencies listed in requirements.txt
 
 
 Installation:
