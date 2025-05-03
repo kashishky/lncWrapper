@@ -31,6 +31,7 @@ PyTorch (compatible version)
 Streamlit
 Other dependencies listed in requirements.txt
 
+
 Installation:
 1. Clone the repository:
    git clone https://github.com/kashishky/lncWrapper.git
@@ -41,10 +42,9 @@ Installation:
 3. Install the required packages:
    pip install -r requirements.txt
 
-Running the API Server Locally
-Note: All scripts are designed to be run locally. The API server is not externally hosted at this stage.
 
-Streamlit Dashboard
-Note: The Streamlit dashboard is standalone and not fully integrated with the API outputs. This design choice was made intentionally to allow independent development and testing.
+Running the API Server Locally: All scripts are designed to be run locally. The API server is not externally hosted at this stage.
+
+Streamlit Dashboard: The Streamlit dashboard is standalone and not fully integrated with the API outputs. This design choice was made intentionally to allow independent development and testing.
 
 
