@@ -6,14 +6,23 @@ lncWrapper is a modular deep reinforcement learning (DRL) framework designed to 
 Project Structure:
 
 agent/: Contains the DRL agent implementations.
+
 data/: Includes datasets and data loaders.
+
 deployment/: Scripts and configurations for deploying the model.
+
 environment/: Defines the environment in which the agent operates.
+
 evaluation/: Tools for evaluating model performance.
+
 frontend/: Streamlit application for visualization and interaction.
+
 preprocessing/: Data preprocessing scripts.
+
 training/: Training routines and configurations.
+
 demo.py: Demonstration script to showcase model capabilities.
+
 requirements.txt: Lists all Python dependencies.
 
 Prerequisites:
