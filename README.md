@@ -1,32 +1,36 @@
 # lncWrapper
 A concise, explainable deep reinforcement learning framework for predicting regulatory functions of long non-coding RNAs by integrating sequence, secondary structure, and GWAS data. 
 
-lncWrapper is a modular deep reinforcement learning (DRL) framework designed to predict the regulatory functions of long non-coding RNAs (lncRNAs). By integrating sequence data, secondary structure information, and genome-wide association studies (GWAS) data, the framework aims to provide accurate and explainable predictions.
+
+Overview
+lncWrapper is a modular deep reinforcement learning (DRL) framework designed to predict the regulatory functions of long non-coding RNAs. It integrates sequence data, secondary structure, and genome-wide association studies (GWAS) data to generate accurate and interpretable predictions.
+
 
 Project Structure:
 
-agent/: Contains the DRL agent implementations.
+agent/         # DRL agent implementations
 
-data/: Includes datasets and data loaders.
+data/          # Datasets and data loaders
 
-deployment/: Scripts and configurations for deploying the model.
+deployment/    # API server for inference (FastAPI)
 
-environment/: Defines the environment in which the agent operates.
+environment/   # Environment logic for the agent
 
-evaluation/: Tools for evaluating model performance.
+evaluation/    # Tools for performance evaluation
 
-frontend/: Streamlit application for visualization and interaction.
+frontend/      # Streamlit dashboard for user interaction
 
-preprocessing/: Data preprocessing scripts.
+preprocessing/ # Data preprocessing scripts
 
-training/: Training routines and configurations.
+training/      # Model training logic
 
-demo.py: Demonstration script to showcase model capabilities.
+demo.py        # Original local-only demo script
 
-requirements.txt: Lists all Python dependencies.
+requirements.txt
+
 
 Prerequisites:
-Python 3.7 or higher, PyTorch (compatible version), Streamlit, Other dependencies listed in requirements.txt
+Python 3.7 or higher, PyTorch (compatible version), Streamlit, Other libraries in requirements.txt
 
 
 Installation:
@@ -40,8 +44,14 @@ Installation:
    pip install -r requirements.txt
 
 
-Running the API Server Locally: All scripts are designed to be run locally. The API server is not externally hosted at this stage.
+Running the API Server Locally: 
+1. All scripts are designed to be run locally. The API server is not externally hosted at this stage.
+2. From the root folder, launch the FastAPI backend: uvicorn deployment.lncrna_api_server:app --reload --host 0.0.0.0 --port 8000
 
-Streamlit Dashboard: The Streamlit dashboard is standalone and not fully integrated with the API outputs. This design choice was made intentionally to allow independent development and testing.
+Running the Streamlit Frontend:
+1. The Streamlit dashboard is standalone and not fully integrated with the API outputs. This design choice was made intentionally to allow independent development and testing.
+2. From the root folder: streamlit run frontend/frontend.py
+
+
 
 
