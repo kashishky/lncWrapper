@@ -1,198 +1,143 @@
 import streamlit as st
-import pandas as pd
+import requests
 import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import requests
-import io, re
-from Bio import SeqIO
+import io
 
-# Page config
-st.set_page_config(page_title="lncRNA Explorer Demo (Not on Live Data)", layout="wide")
+# Configure page
+st.set_page_config("lncRNA Explorer (API‐backed)", layout="wide")
 
-# Sidebar controls
-st.sidebar.header("Controls: Load & Display")
-example = st.sidebar.selectbox(
-    "Example transcript:", ["LINC00115", "HSALNT0815277", "CUSTOM_DEMO"]
-)
-fasta_file = st.sidebar.file_uploader("Or upload FASTA (header >chr:start-end)", type=["fa","fasta"])
+# Sidebar: input form
+st.sidebar.header("Load lncRNA via API")
+with st.sidebar.form("infer_form"):
+    transcript_id = st.text_input("Transcript ID (e.g. ENSG00000260032)")
+    fasta_file = st.file_uploader("Or upload FASTA (>chr:start-end)", type=["fa","fasta"])
+    submit = st.form_submit_button("Run Inference")
 
-# API URL
-api_url = "http://127.0.0.1:8000/infer"
+if not submit:
+    st.info("Enter a transcript ID or upload a FASTA, then click ‘Run Inference’")
+    st.stop()
 
-# Send to API if not using demo data
-api_response = None
-if fasta_file:
-    content = fasta_file.read().decode()
-    rec = next(SeqIO.parse(io.StringIO(content), 'fasta'), None)
-    header = rec.description if rec else ''
-    m = re.match(r"(\w+):(\d+)-(\d+)", header)
-    chr_  = m.group(1) if m else 'chr1'
-    start = int(m.group(2)) if m else 1000000
-    end   = int(m.group(3)) if m else 1000800
-    payload = {
-        "sequence": str(rec.seq),
-        "chr": chr_,
-        "start": start,
-        "end": end
-    }
-    try:
-        response = requests.post(api_url, json=payload)
-        if response.status_code == 200:
-            api_response = response.json()
-        else:
-            st.error(f"API Error: {response.status_code} - {response.text}")
-    except Exception as e:
-        st.error(f"Failed to reach API: {e}")
-
-# Fallback to demo data if no file uploaded or API failed
-@st.cache_data
-def load_demo(example):
-    coords = {'LINC00115':('chr1',150000000,800), 'HSALNT0815277':('chr4',136269570,650)}
-    chr_, start, length = coords.get(example,('chrX',1000000,700))
-    seq = ''.join(np.random.choice(list('ACGU'), length))
-    pos = np.arange(length)
-    att = np.exp(-((pos-length*0.3)/(length*0.1))**2) + np.exp(-((pos-length*0.7)/(length*0.05))**2)
-    att /= att.max()
-    gmask = np.random.binomial(1,0.02,length); gmask[0]=1
-    gvals = gmask * np.random.uniform(3,7,length)
-    cons  = np.clip(np.random.normal(0.6,0.2,length),0,1)
-    tfbs  = np.random.binomial(1,0.007,length)
-    reg   = np.random.binomial(1,0.01,length)
-    atac  = np.random.binomial(1,0.015,length)
-    df = pd.DataFrame({'pos':pos,'nuc':list(seq),'attention':att,
-                       'gmask':gmask,'gvals':gvals,'cons':cons,
-                       'tfbs':tfbs,'reg':reg,'atac':atac})
-    go_df = pd.DataFrame([
-        {'GO ID':'GO:0006355','Term':'Regulation of transcription','FDR':0.002},
-        {'GO ID':'GO:0008380','Term':'RNA splicing','FDR':0.005},
-        {'GO ID':'GO:0003723','Term':'RNA binding','FDR':0.010}
-    ])
-    kegg_df = pd.DataFrame([
-        {'Pathway':'Cell cycle','FDR':0.004},
-        {'Pathway':'Spliceosome','FDR':0.019}
-    ])
-    metrics = pd.DataFrame({
-        'Metric':['Prediction Loss','Interpretability','Composite Reward','Bias Adj','Scaling Adj'],
-        'Value':[0.18,0.88,1.76,1,0]
-    })
-    return chr_, start, start+length-1, seq, df, go_df, kegg_df, metrics
-
-if api_response:
-    chr_ = api_response.get("chr", "chr1")
-    start = api_response.get("start", 1000000)
-    end = api_response.get("end", 1000700)
-    seq = api_response.get("sequence", "")
-    df = pd.DataFrame(api_response.get("sequence_df", {}))
-    go_df = pd.DataFrame(api_response.get("go_terms", []))
-    kegg_df = pd.DataFrame(api_response.get("kegg_terms", []))
-    metrics = pd.DataFrame(api_response.get("metrics", {}))
+# Send request to API
+api_url = "http://localhost:8000/infer"
+files = {}
+data = {}
+if transcript_id:
+    data["transcript_id"] = transcript_id
+elif fasta_file:
+    files["fasta"] = (fasta_file.name, fasta_file.getvalue())
 else:
-    chr_,start,end,seq,df,go_df,kegg_df,metrics = load_demo(example)
+    st.error("Provide either Transcript ID or FASTA")
+    st.stop()
 
-# Can use `df`, `go_df`, `kegg_df`, and `metrics` as before for plots
+with st.spinner("Contacting inference API…"):
+    resp = requests.post(api_url, data=data, files=files)
+if resp.status_code != 200:
+    st.error(f"API error {resp.status_code}: {resp.text}")
+    st.stop()
 
-length = len(seq)
-window = st.slider('View region (nt):', 0, length-1, (0, min(200,length-1)))
-region = df.iloc[window[0]:window[1]+1]
+result = resp.json()
 
-# Track toggles
-show_att = st.sidebar.checkbox("Attention Hotspots", True)
-show_gwas = st.sidebar.checkbox("GWAS SNPs & Scores", True)
-show_cons = st.sidebar.checkbox("Conservation", True)
-show_tfbs = st.sidebar.checkbox("TFBS Motifs", True)
-show_reg  = st.sidebar.checkbox("Regulatory Features", True)
-show_atac = st.sidebar.checkbox("ATAC Peaks", True)
-
-titles = ['Sequence']
-if show_att: titles.append('Attention')
-if show_gwas: titles.append('GWAS')
-if show_cons: titles.append('Conservation')
-if show_tfbs: titles.append('TFBS Motifs')
-if show_reg: titles.append('Regulatory Features')
-if show_atac: titles.append('ATAC Peaks')
-
-rows = len(titles)
-heights = [0.1] + [0.9/(rows-1)]*(rows-1)
-
-grid = make_subplots(rows=rows, cols=1, shared_xaxes=True,
-                     row_heights=heights, vertical_spacing=0.02,
-                     subplot_titles=titles)
-row = 1
-grid.add_trace(go.Scatter(x=region.pos, y=[0]*len(region), mode='text',
-                          text=region.nuc, textfont=dict(family='Courier New',size=14),
-                          showlegend=False), row=row, col=1)
-row +=1
-if show_att:
-    grid.add_trace(go.Scatter(x=region.pos, y=region.attention, mode='lines',
-                              line=dict(color='crimson',width=2), name='Attention'),
-                   row=row, col=1)
-    row +=1
-if show_gwas:
-    grid.add_trace(go.Bar(x=region.pos, y=region.gvals, marker_color='black', name='-log10(p)'), row=row, col=1)
-    snp = region[region.gmask==1]
-    grid.add_trace(go.Scatter(x=snp.pos, y=snp.gvals*1.1, mode='markers',
-        marker_symbol='line-ns-open', marker_color='black', marker_size=10,
-        name='SNPs', hovertext=[f"rsID: rs{10000+i}" for i in snp.index],
-        hoverinfo='text'), row=row, col=1)
-    row +=1
-if show_cons:
-    grid.add_trace(go.Scatter(x=region.pos, y=region.cons, mode='lines',
-                              line=dict(color='blue',width=2), name='Conservation'),
-                   row=row, col=1)
-    row +=1
-if show_tfbs:
-    pts = region[region.tfbs==1]
-    grid.add_trace(go.Scatter(x=pts.pos, y=[0.5]*len(pts), mode='markers',
-                              marker_symbol='triangle-up', marker_color='green',
-                              marker_size=10, name='TFBS'), row=row, col=1)
-    row +=1
-if show_reg:
-    pts = region[region.reg==1]
-    grid.add_trace(go.Scatter(x=pts.pos, y=[0.5]*len(pts), mode='markers',
-                              marker_symbol='diamond', marker_color='purple',
-                              marker_size=10, name='Regulatory Features'),
-                   row=row, col=1)
-    row +=1
-if show_atac:
-    pts = region[region.atac==1]
-    grid.add_trace(go.Scatter(x=pts.pos, y=[0.5]*len(pts), mode='markers',
-                              marker_symbol='triangle-down', marker_color='orange',
-                              marker_size=10, name='ATAC'), row=row, col=1)
-    row +=1
-grid.update_yaxes(visible=False)
-grid.update_xaxes(title_text='Genomic Position', row=rows)
-grid.update_layout(height=100*rows, showlegend=True, margin=dict(l=50,r=50,t=50,b=50))
-st.plotly_chart(grid, use_container_width=True)
-
-st.subheader('DRL Agent Parameters & Metrics')
+# Header info
+st.title("lncRNA Explorer (API Results)")
+tid = transcript_id or "CUSTOM"
+length = len(result["attention_weights"])
 st.markdown(
-    'The DRL agent optimizes a composite reward balancing prediction accuracy (low loss), '
-    'interpretability (focused attention), and biological overlap (GWAS). '
-    'Bias and scaling adjustments are the discrete action steps modifying attention distribution.'
+    f"**Transcript:** {tid}    |    **Length:** {length} nt    |    "
+    f"**Loss:** {result['final_loss']:.3f}    |    "
+    f"**Interp:** {result['interpretability']:.3f}    |    "
+    f"**Reward:** {result['composite_reward']:.3f}"
 )
-fig2 = go.Figure(go.Bar(
-    x=metrics.Metric, y=metrics.Value, marker_color='teal', text=metrics.Value, textposition='outside'
-))
-fig2.update_layout(title='DRL Metrics Overview', xaxis_tickangle=-45, margin=dict(b=150))
-st.plotly_chart(fig2, use_container_width=True)
 
-st.subheader('GO-term Enrichment')
-st.table(go_df)
-st.subheader('KEGG Pathway Enrichment')
-st.table(kegg_df)
+# Plot multi‐track viewer
+st.subheader("Sequence & Annotation Tracks")
+pos = np.arange(length)
+att = np.array(result["attention_weights"])
+# Build SNP mask and values
+snp_mask = np.zeros(length, bool)
+snp_vals = np.zeros(length)
+for hit in result["snp_overlap"]:
+    p = hit["position"]
+    snp_mask[p] = True
+    snp_vals[p] = hit.get("log10p", 0.0)
 
-st.subheader('LLM Interpretation & Insights')
-if st.button('Generate Detailed Insights'):
-    st.info(
-        'The DRL-tuned model exhibits strong attention at bases 180–260, overlapping SNP rs12345 '
-        '(-log10 p=6.5) and dense TFBS motif clusters, indicating enhancer-like function. '
-        'Conservation is elevated (mean=0.78), suggesting evolutionary constraint. '
-        'A secondary hotspot at 480–520 corresponds to regulatory mark accumulation and ATAC peaks, '
-        'implying promoter accessibility. GO enrichment in RNA binding and transcription regulation, '
-        'alongside KEGG pathways (Cell cycle, Spliceosome), supports roles in chromatin remodeling and splicing lineage.'
-    )
+# Create subplots: Sequence, Attention, SNPs, (stub) Conservation & Others
+fig = make_subplots(
+    rows=4, cols=1, shared_xaxes=True,
+    row_heights=[0.1,0.3,0.3,0.3],
+    subplot_titles=["Sequence", "Attention", "GWAS SNPs & Scores", "Other Features"]
+)
 
-st.markdown('---')
-st.caption("Synthetic data for interactive, live demo of lncRNA features.")
+# 1) Nucleotide sequence
+seq = result.get("hotspots", [])
+# We don't have raw seq from API; show positions instead
+fig.add_trace(
+    go.Scatter(x=pos, y=[0]*length, mode="markers+text",
+               text=["•"]*length, textfont=dict(size=8),
+               hovertext=[f"Pos {i}" for i in pos],
+               showlegend=False),
+    row=1, col=1
+)
 
+# 2) Attention line
+fig.add_trace(
+    go.Scatter(x=pos, y=att, mode="lines", line_color="crimson", name="Attention"),
+    row=2, col=1
+)
+
+# 3) SNP bar + ticks
+fig.add_trace(
+    go.Bar(x=pos, y=snp_vals, marker_color="black", name="-log10(p)"),
+    row=3, col=1
+)
+# SNP ticks
+snp_pos = pos[snp_mask]
+fig.add_trace(
+    go.Scatter(x=snp_pos, y=snp_vals[snp_mask]*1.1,
+               mode="markers", marker_symbol="line-ns-open",
+               marker_color="black", marker_size=10,
+               name="SNPs",
+               hovertext=[f"{hit['rsID']}: {hit['log10p']:.2f}" 
+                          for hit in result["snp_overlap"]],
+               hoverinfo="text"),
+    row=3, col=1
+)
+
+# 4) Other features: conservation, tfbs, reg, atac if present
+# Many will be stubbed zeros; but we check keys
+# For simplicity, just show counts per-base if non-zero
+# In real API extend to include arrays
+for key, color in [("cons", "blue"), ("tfbs", "green"), ("reg", "purple"), ("atac", "orange")]:
+    arr = result.get(key)
+    if arr:
+        arr = np.array(arr)
+        fig.add_trace(
+            go.Scatter(x=pos, y=arr, mode="lines", line_color=color, name=key),
+            row=4, col=1
+        )
+
+fig.update_yaxes(visible=False)
+fig.update_xaxes(title_text="Position", row=4)
+fig.update_layout(height=700, showlegend=True, margin=dict(l=50,r=50,t=50,b=50))
+st.plotly_chart(fig, use_container_width=True)
+
+# Parameter adjustments
+adj = result["parameter_adjustments"]
+st.subheader("DRL Parameter Adjustments")
+st.write(f"Scaling adjustments per step: {[a[0] for a in adj]}")
+st.write(f"Bias adjustments per step:    {[a[1] for a in adj]}")
+
+# GO terms & eQTLs
+st.subheader("GO Annotations")
+st.write(result["go_terms"])
+st.subheader("eQTL Associations")
+st.write(result["eqtls"])
+
+# Narrative & literature
+st.subheader("LLM Narrative")
+st.write(result["narrative"])
+st.subheader("Literature Snippets")
+for snip in result["literature_snippets"]:
+    st.markdown(f"- {snip}")
