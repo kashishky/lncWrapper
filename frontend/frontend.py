@@ -8,7 +8,7 @@ import io, re
 from Bio import SeqIO
 
 # Page config
-st.set_page_config(page_title="lncRNA Explorer Demo", layout="wide")
+st.set_page_config(page_title="lncRNA Explorer Demo (Not on Live Data)", layout="wide")
 
 # Sidebar controls
 st.sidebar.header("Controls: Load & Display")
