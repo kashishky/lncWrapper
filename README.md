@@ -4,6 +4,7 @@ A concise, explainable deep reinforcement learning framework for predicting regu
 lncWrapper is a modular deep reinforcement learning (DRL) framework designed to predict the regulatory functions of long non-coding RNAs (lncRNAs). By integrating sequence data, secondary structure information, and genome-wide association studies (GWAS) data, the framework aims to provide accurate and explainable predictions.
 
 Project Structure:
+
 agent/: Contains the DRL agent implementations.
 data/: Includes datasets and data loaders.
 deployment/: Scripts and configurations for deploying the model.
