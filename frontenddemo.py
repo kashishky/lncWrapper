@@ -1,5 +1,6 @@
 """
-This is a pre-loaded visual set up of the demo calling form the API server using examples, not a live represnetation of calling the model
+This is a pre-loaded visual set up of the demo calling form the API server using examples, not a live represnetation of calling the model. 
+The script in frontend folder refers to live model.
 
 """
 
